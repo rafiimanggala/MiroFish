@@ -39,6 +39,7 @@
         :refreshTrigger="refreshCount"
         @nodeClick="onNodeClick"
         @edgeClick="onEdgeClick"
+        @statsLoaded="onStatsLoaded"
       />
     </main>
 
@@ -79,16 +80,21 @@ const projects = ref([])
 const selectedGraphId = ref('')
 const selectedProject = ref(null)
 const refreshCount = ref(0)
+const graphDataStats = ref(null)
 
 const graphStats = computed(() => {
   if (!selectedProject.value) return null
   const ont = selectedProject.value.ontology
   return {
-    nodes: selectedProject.value.nodes_count || '?',
-    edges: selectedProject.value.edges_count || '?',
+    nodes: graphDataStats.value?.nodes ?? '?',
+    edges: graphDataStats.value?.edges ?? '?',
     types: ont?.entity_types?.length || '?',
   }
 })
+
+function onStatsLoaded(stats) {
+  graphDataStats.value = stats
+}
 
 function refresh() {
   refreshCount.value++

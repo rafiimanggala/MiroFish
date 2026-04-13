@@ -6,6 +6,7 @@ dist/
 build/
 *.db
 .env
+.venv/
 
 # Node
 node_modules/

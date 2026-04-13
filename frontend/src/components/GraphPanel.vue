@@ -86,7 +86,7 @@ const props = defineProps({
   refreshTrigger: { type: Number, default: 0 },
 })
 
-const emit = defineEmits(['nodeClick', 'edgeClick'])
+const emit = defineEmits(['nodeClick', 'edgeClick', 'statsLoaded'])
 
 const containerRef = ref(null)
 const svgRef = ref(null)
@@ -147,6 +147,7 @@ async function fetchData() {
       ...e,
       edge_type: e.edge_type || e.type,
     }))
+    emit('statsLoaded', { nodes: graphNodes.value.length, edges: graphEdges.value.length })
     isLoading.value = false
     await nextTick()
     renderGraph()
@@ -210,10 +211,12 @@ function renderGraph() {
   if (simulation) simulation.stop()
 
   simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id((d) => d.name || d.id).distance(100))
-    .force('charge', d3.forceManyBody().strength(-250))
+    .force('link', d3.forceLink(links).id((d) => d.name || d.id).distance(120))
+    .force('charge', d3.forceManyBody().strength(-400))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius((d) => getNodeRadius(d) + 4))
+    .force('collision', d3.forceCollide().radius((d) => getNodeRadius(d) + 6))
+    .force('x', d3.forceX(width / 2).strength(0.05))
+    .force('y', d3.forceY(height / 2).strength(0.05))
 
   // Edges
   const linkGroup = g.append('g').attr('class', 'links')
@@ -241,6 +244,15 @@ function renderGraph() {
     .attr('fill', '#666')
     .attr('text-anchor', 'middle')
     .attr('pointer-events', 'none')
+    .attr('opacity', 0)
+
+  link.on('mouseover', (event, d) => {
+    linkLabel.filter((l) => l === d).attr('opacity', 1)
+    d3.select(event.currentTarget).attr('stroke', '#888').attr('stroke-width', 2)
+  }).on('mouseout', (event, d) => {
+    linkLabel.filter((l) => l === d).attr('opacity', 0)
+    d3.select(event.currentTarget).attr('stroke', '#444').attr('stroke-width', 1.2)
+  })
 
   // Nodes
   const nodeGroup = g.append('g').attr('class', 'nodes')
@@ -314,6 +326,25 @@ function renderGraph() {
     nodeLabel
       .attr('x', (d) => d.x)
       .attr('y', (d) => d.y)
+  })
+
+  simulation.on('end', () => {
+    const xs = nodes.map((n) => n.x)
+    const ys = nodes.map((n) => n.y)
+    const pad = 40
+    const x0 = Math.min(...xs) - pad
+    const y0 = Math.min(...ys) - pad
+    const x1 = Math.max(...xs) + pad
+    const y1 = Math.max(...ys) + pad
+    const bw = x1 - x0
+    const bh = y1 - y0
+    const scale = Math.min(width / bw, height / bh, 1.5)
+    const tx = (width - bw * scale) / 2 - x0 * scale
+    const ty = (height - bh * scale) / 2 - y0 * scale
+    svg.transition().duration(500).call(
+      zoom.transform,
+      d3.zoomIdentity.translate(tx, ty).scale(scale)
+    )
   })
 }
 
